@@ -10,10 +10,15 @@ export const addQuestionsToDbFromJson = async (data: QuizData) => {
   const questions = extractQuestionsFromJson(data)
 
   for (const q of questions) {
-    await pool.query(
-      "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4)",
-      [q.question, q.answer, q.difficulty, q.tags],
-    )
+    try {
+      await pool.query(
+        "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4)",
+        [q.question, q.answer, q.difficulty, q.tags],
+      )
+    } catch (e) {
+      console.log("ERROR:", e)
+      continue
+    }
   }
 }
 
