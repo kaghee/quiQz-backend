@@ -3,16 +3,10 @@ import { QueryResult } from "pg"
 import pool from "../db"
 // import fs from "fs"
 // import multer from "multer"
-import {
-  addQuestionsToDbFromJson,
-  extractQuestionsFromJson,
-} from "../services/quiz"
+import { processAndSaveQuiz } from "../services/quiz"
+import type { QuizData } from "../types"
 
 export const QuizRouter: Router = Router()
-
-// interface MulterRequest extends Request {
-//   file?: Express.Multer.File | undefined
-// }
 
 QuizRouter.get("/", async (req: Request, res: Response) => {
   let result: QueryResult
@@ -23,15 +17,29 @@ QuizRouter.get("/", async (req: Request, res: Response) => {
 })
 
 QuizRouter.post("/", (req: Request, res: Response) => {
-  console.log("req!!!!1:", req.body)
-
   res.status(201).send("Quiz created successfully.")
 })
 
 QuizRouter.post(
-  "/upload/",
-  (req: Request, res: Response) => {
-    addQuestionsToDbFromJson(req.body)
+  "/load/",
+  async (req: Request, res: Response) => {
+    try {
+      const result = await processAndSaveQuiz(req.body)
+      if (result?.quizId) {
+        res.status(201).send({
+          message: "Questions and quiz added to db.",
+          quizId: result.quizId,
+        })
+      } else {
+        res.status(400).send("Something went wrong while loading the quiz.")
+      }
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        res.status(400).send({ error: e.message })
+      } else {
+        res.status(400).send("An unknown error occurred.")
+      }
+    }
   },
   //   if (!req.file) {
   //     return res.status(400).json({ error: "No file uploaded" })

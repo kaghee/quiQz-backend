@@ -45,6 +45,7 @@ export interface BlockType {
 }
 
 export interface QuizData {
+  id: number
   date: string
   title: string
   blocks: BlockType[]

@@ -16,7 +16,7 @@ export const addQuestionsToDbFromJson = async (data: QuizData) => {
         [q.question, q.answer, q.difficulty, q.tags],
       )
     } catch (e) {
-      console.log("ERROR:", e)
+      console.log("ERROR adding question", e)
       continue
     }
   }
@@ -45,4 +45,21 @@ export const extractQuestionsFromJson = (data: QuizData) => {
   )
 
   return questions
+}
+
+export const processAndSaveQuiz = async (
+  data: QuizData,
+): Promise<{ quizId?: number } | undefined> => {
+  try {
+    await addQuestionsToDbFromJson(data)
+    const result = await pool.query(
+      "INSERT INTO quiz (title, date, blocks) VALUES ($1, $2, $3) RETURNING id",
+      [data.title, data.date, JSON.stringify(data.blocks)],
+    )
+    return { quizId: result.rows[0].id }
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("duplicate key")) {
+      throw new Error("A quiz with this title already exists.")
+    }
+  }
 }
