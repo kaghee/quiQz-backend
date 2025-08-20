@@ -19,22 +19,26 @@ export interface QuestionDataType {
   tags?: string[]
 }
 
-export interface TitleSlideType {
-  type?: string
-  text: string
-  subText?: string
-  withImage?: boolean
+export interface BaseSlideType {
+  type: string
   imageCount?: number
-}
-
-export interface QuestionSlideType extends TitleSlideType, QuestionDataType {
-  number?: number
-  questionType: QuestionType
+  images?: []
   background?: string
   textColour?: string
 }
 
-export type SlideType = TitleSlideType | QuestionSlideType
+export interface QuestionSlideType extends BaseSlideType, QuestionDataType {
+  number: number
+  questionType: QuestionType
+  isCheckingMode: boolean
+}
+
+export interface TitleSlideType extends BaseSlideType {
+  text: string
+  subText?: string
+}
+
+export type SlideType = QuestionSlideType & TitleSlideType
 
 export interface BlockType {
   type: QuestionSlideType | "static"

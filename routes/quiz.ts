@@ -3,7 +3,7 @@ import { QueryResult } from "pg"
 import pool from "../db"
 // import fs from "fs"
 // import multer from "multer"
-import { processAndSaveQuiz } from "../services/quiz"
+import { DuplicateError, processAndSaveQuiz } from "../services/quiz"
 import type { QuizData } from "../types"
 
 export const QuizRouter: Router = Router()
@@ -34,8 +34,8 @@ QuizRouter.post(
         res.status(400).send("Something went wrong while loading the quiz.")
       }
     } catch (e: unknown) {
-      if (e instanceof Error) {
-        res.status(400).send({ error: e.message })
+      if (e instanceof DuplicateError) {
+        res.status(409).send({ error: e.message })
       } else {
         res.status(400).send("An unknown error occurred.")
       }
