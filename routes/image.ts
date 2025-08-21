@@ -4,6 +4,8 @@ import pool from "../db"
 import multer from "multer"
 import { uploadImage } from "../services/image"
 
+const upload = multer()
+
 export const ImageRouter: Router = Router()
 
 // ImageRouter.get("/", async (_req: Request, res: Response) => {
@@ -12,8 +14,6 @@ export const ImageRouter: Router = Router()
 //   result = await pool.query("SELECT * FROM question")
 //   res.send(result.rows)
 // })
-
-const upload = multer()
 
 ImageRouter.post(
   "/",
@@ -25,10 +25,24 @@ ImageRouter.post(
     } else {
       const file = req.file
       const [quizTitle, slideNo, fileName] =
-        file?.originalname.split("--") || []
-      const remotePath = `/${quizTitle}/${slideNo}/${fileName}`
+        file?.originalname.split("---") || []
+      const imageIndex = fileName?.split("--")[0]
 
-      const downloadUrl = await uploadImage(file, remotePath)
+      if (!quizTitle || !slideNo) {
+        res.status(400).send({
+          error: "No quiz title or slide id found on the attached file.",
+        })
+        return
+      }
+      const path = `/${quizTitle}/${slideNo}/${fileName}`
+
+      const downloadUrl = await uploadImage({
+        file,
+        path,
+        quizTitle,
+        slideNo,
+        // imageIndex,
+      })
 
       res.status(201).send({
         url: downloadUrl,

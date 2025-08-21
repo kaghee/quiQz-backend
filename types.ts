@@ -20,6 +20,7 @@ export interface QuestionDataType {
 }
 
 export interface BaseSlideType {
+  id: number
   type: string
   imageCount?: number
   images?: []

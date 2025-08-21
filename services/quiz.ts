@@ -1,11 +1,6 @@
 import pool from "../db"
-import type {
-  BlockType,
-  QuestionDataType,
-  QuestionSlideType,
-  QuizData,
-} from "../types"
-
+import type { BlockType, QuestionDataType, QuizData } from "../types"
+import { normalizeText } from "../utils"
 
 export class DuplicateError extends Error {
   constructor(message?: string) {
@@ -14,9 +9,10 @@ export class DuplicateError extends Error {
   }
 }
 
-export const addQuestionsToDbFromJson = async (data: QuizData) => {
-  const questions = extractQuestionsFromJson(data)
-
+/** Inserts questions to the db from a given question array. */
+export const addQuestionsToDbFromJson = async (
+  questions: QuestionDataType[],
+) => {
   for (const q of questions) {
     try {
       await pool.query(
@@ -30,41 +26,46 @@ export const addQuestionsToDbFromJson = async (data: QuizData) => {
   }
 }
 
-export const extractQuestionsFromJson = (data: QuizData) => {
+/** Adds indices to each slide, and collects all the question data.
+ * Returns an array of questions ready for db insertion,
+ * and the quiz data object updated with slide ids.
+*/
+export const parseQuiz = (data: QuizData) => {
+  let slideCounter = 0
   const questions: QuestionDataType[] = data.blocks.reduce(
     (acc: QuestionDataType[], currBlock: BlockType) => {
-      if (currBlock.type !== "static") {
-        const qs: QuestionSlideType[] = currBlock.slides.filter(
-          (slide) => slide.type === "question",
-        ) as QuestionSlideType[]
-
-        acc.push(
-          ...qs.map((q: QuestionSlideType) => ({
-            question: q.question,
-            answer: q.answer,
-            difficulty: q.difficulty ?? null,
-            tags: q.tags ?? [],
-          })),
-        )
-      }
+      currBlock.slides.forEach((slide) => {
+        slide.id = slideCounter++
+        if (slide.type === "question") {
+          acc.push({
+            question: slide.question,
+            answer: slide.answer,
+            difficulty: slide.difficulty ?? null,
+            tags: slide.tags ?? [],
+          })
+        }
+      })
       return acc
     },
     [],
   )
-
-  return questions
+  return { questions, updatedJson: data }
 }
 
+/** Extracts questions from the quiz object and inserts them into the db.
+ * After adding slide ids to the object, nserts the quiz to the db.
+*/
 export const processAndSaveQuiz = async (
   data: QuizData,
 ): Promise<{ quizId?: number } | undefined> => {
   try {
-    await addQuestionsToDbFromJson(data)
+    const { questions, updatedJson } = parseQuiz(data)
+    await addQuestionsToDbFromJson(questions)
 
-    // blocks.slides-ban slideonkent kell egy images[] imageCount szamu elemmel es linkekkel. ahol meg nincs link, vmi dummy link legyen talan
+    const formattedTitle = normalizeText(updatedJson.title)
     const result = await pool.query(
       "INSERT INTO quiz (title, date, blocks) VALUES ($1, $2, $3) RETURNING id",
-      [data.title, data.date, JSON.stringify(data.blocks)],
+      [formattedTitle, updatedJson.date, JSON.stringify(updatedJson.blocks)],
     )
     return { quizId: result.rows[0].id }
   } catch (e) {
