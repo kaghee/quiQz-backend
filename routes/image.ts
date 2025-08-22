@@ -41,7 +41,6 @@ ImageRouter.post(
         path,
         quizTitle,
         slideNo,
-        // imageIndex,
       })
 
       res.status(201).send({

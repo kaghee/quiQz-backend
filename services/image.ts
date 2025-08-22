@@ -40,14 +40,18 @@ const addImageToQuizSlide = async (
       quizToUpdate.blocks,
       slideId,
     )
-    quizToUpdate.blocks[blockIndex].slides[slideIndex].images.push(url)
+    const slide = quizToUpdate.blocks[blockIndex].slides[slideIndex]
+    if (!slide.images) {
+      slide["images"] = []
+    }
+    slide.images.push(url)
 
     await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
       JSON.stringify(quizToUpdate.blocks),
       quizToUpdate.id,
     ])
 
-    console.log("Image url added to quiz object.")
+    console.info("Image url added to quiz object.")
   }
 }
 
@@ -60,7 +64,6 @@ export const uploadImage = async ({
   path,
   quizTitle,
   slideNo,
-  // imageIndex
 }: {
   file: Express.Multer.File
   path: string

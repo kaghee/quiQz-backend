@@ -1,8 +1,6 @@
-import express, { type Request, type Response, Router } from "express"
+import { type Request, type Response, Router } from "express"
 import { QueryResult } from "pg"
 import pool from "../db"
-// import fs from "fs"
-// import multer from "multer"
 import { DuplicateError, processAndSaveQuiz } from "../services/quiz"
 import type { QuizData } from "../types"
 
@@ -11,9 +9,15 @@ export const QuizRouter: Router = Router()
 QuizRouter.get("/", async (req: Request, res: Response) => {
   let result: QueryResult
 
-  result = await pool.query("SELECT * FROM quiz")
-
+  result = await pool.query("SELECT id, title FROM quiz")
   res.send(result.rows)
+})
+
+QuizRouter.get("/:id/", async (req: Request, res: Response) => {
+  let result: QueryResult
+
+  result = await pool.query("SELECT * FROM quiz WHERE id = $1", [req.params.id])
+  res.send(result.rows[0])
 })
 
 QuizRouter.post("/", (req: Request, res: Response) => {
