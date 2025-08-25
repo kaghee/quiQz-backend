@@ -23,7 +23,7 @@ export interface BaseSlideType {
   id: number
   type: string
   imageCount?: number
-  images?: []
+  images?: { [imageIndex: number]: string }
   background?: string
   textColour?: string
 }

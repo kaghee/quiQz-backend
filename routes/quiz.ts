@@ -10,14 +10,14 @@ QuizRouter.get("/", async (req: Request, res: Response) => {
   let result: QueryResult
 
   result = await pool.query("SELECT id, title FROM quiz")
-  res.send(result.rows)
+  res.status(200).send(result.rows)
 })
 
 QuizRouter.get("/:id/", async (req: Request, res: Response) => {
   let result: QueryResult
 
   result = await pool.query("SELECT * FROM quiz WHERE id = $1", [req.params.id])
-  res.send(result.rows[0])
+  res.status(200).send(result.rows[0])
 })
 
 QuizRouter.post("/", (req: Request, res: Response) => {
