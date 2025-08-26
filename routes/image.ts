@@ -11,7 +11,7 @@ ImageRouter.post(
   upload.single("image"),
   async (req: Request, res: Response) => {
     if (!req.file) {
-      res.status(400).send({ error: "No file attached." })
+      res.status(400).send({ message: "No file attached." })
     } else {
       const file = req.file
       const [quizTitle, slideNo, fileName] =
@@ -19,7 +19,7 @@ ImageRouter.post(
 
       if (!quizTitle || !slideNo || !fileName) {
         res.status(400).send({
-          error: "No quiz title or slide id found on the attached file.",
+          message: "No quiz title or slide id found on the attached file.",
         })
         return
       }

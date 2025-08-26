@@ -37,7 +37,7 @@ QuizRouter.post("/load/", async (req: Request, res: Response) => {
     }
   } catch (e: unknown) {
     if (e instanceof DuplicateError) {
-      res.status(409).send({ error: e.message })
+      res.status(409).send({ message: e.message })
     } else {
       res.status(400).send("An unknown error occurred.")
     }
