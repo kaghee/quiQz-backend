@@ -1,8 +1,7 @@
-import { type Request, type Response, Router } from "express"
 import { QueryResult } from "pg"
 import pool from "../db"
+import { type Request, type Response, Router } from "express"
 import { DuplicateError, processAndSaveQuiz } from "../services/quiz"
-import type { QuizData } from "../types"
 
 export const QuizRouter: Router = Router()
 

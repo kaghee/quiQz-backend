@@ -1,16 +1,13 @@
-const QuestionType = {
-  WARM_UP: "warm up",
-  THEMATIC: "thematic",
-  CONNECTION: "connection",
-  IMAGES: "images",
-  WHO_AM_I: "who am i",
-  PICK_ONE: "pick one",
-  MINEFIELD: "minefield",
-  SOUNDS: "sounds",
-  PLUS_TEN: "plus ten",
-} as const
-
-export type QuestionType = (typeof QuestionType)[keyof typeof QuestionType]
+export type QuestionType =
+  | "Bemelegítés"
+  | "Tematikus"
+  | "Kapcsolat kör"
+  | "A hét kedvence"
+  | "Kérdezz! Felelek"
+  | "Válassz egyet!"
+  | "Aknamező"
+  | "Hangos kör"
+  | "+10"
 
 export interface QuestionDataType {
   question: string
@@ -35,14 +32,17 @@ export interface QuestionSlideType extends BaseSlideType, QuestionDataType {
 }
 
 export interface TitleSlideType extends BaseSlideType {
-  text: string
-  subText?: string
+  title: string
+  subTitle?: string
+  superTitle?: string
+  text?: string
+  cornerText?: string
 }
 
-export type SlideType = QuestionSlideType & TitleSlideType
+export type SlideType = QuestionSlideType | TitleSlideType
 
 export interface BlockType {
-  type: QuestionSlideType | "static"
+  type: QuestionType | "static"
   topic?: string
   slides: SlideType[]
   background?: string
@@ -50,8 +50,9 @@ export interface BlockType {
 }
 
 export interface QuizData {
-  id: number
+  id?: number
   date: string
   title: string
+  host: string
   blocks: BlockType[]
 }

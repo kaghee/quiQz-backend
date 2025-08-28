@@ -1,5 +1,12 @@
 import pool from "../db"
-import type { BlockType, QuestionDataType, QuizData } from "../types"
+import type {
+  BlockType,
+  QuestionDataType,
+  QuestionSlideType,
+  QuizData,
+  SlideType,
+  TitleSlideType,
+} from "../types"
 import { normalizeText } from "../utils"
 
 export class DuplicateError extends Error {
@@ -19,37 +26,107 @@ export const addQuestionsToDbFromJson = async (
         "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4)",
         [q.question, q.answer, q.difficulty, q.tags],
       )
-    } catch (e) {
-      console.log("ERROR adding question", e)
-      continue
+    } catch (e: any) {
+      if ("code" in e && e.code === "23505") {
+        console.log(
+          `Skipping adding question ${q.question} as it already exists.`,
+        )
+        continue
+      }
     }
   }
 }
 
-/** Adds indices to each slide, and collects all the question data.
- * Returns an array of questions ready for db insertion,
- * and the quiz data object updated with slide ids.
-*/
-export const parseQuiz = (data: QuizData) => {
-  let slideCounter = 0
-  const questions: QuestionDataType[] = data.blocks.reduce(
-    (acc: QuestionDataType[], currBlock: BlockType) => {
-      currBlock.slides.forEach((slide) => {
-        slide.id = slideCounter++
-        if (slide.type === "question") {
-          acc.push({
-            question: slide.question,
-            answer: slide.answer,
-            difficulty: slide.difficulty ?? null,
-            tags: slide.tags ?? [],
-          })
-        }
-      })
-      return acc
+/** Generates the first block (slide) that shows the main quiz data. */
+const generateTitleBlock = (quizData: QuizData): BlockType => {
+  const questionTypes: string[] = quizData.blocks.reduce(
+    (blockTitles: string[], currBlock: BlockType) => {
+      if (currBlock.type !== "static") {
+        blockTitles.push(
+          `${currBlock.type}${currBlock.topic ? `: ${currBlock.topic}` : ""} | `,
+        )
+      }
+      return blockTitles
     },
     [],
   )
-  return { questions, updatedJson: data }
+  const titleSlideText = questionTypes.join("").slice(0, -3)
+
+  const titleBlock: BlockType = {
+    type: "static",
+    slides: [
+      {
+        id: 0,
+        type: "title",
+        title: quizData.title,
+        text: titleSlideText,
+        cornerText: `Kvízmester: ${quizData.host}`,
+      } as TitleSlideType,
+    ],
+  }
+  return titleBlock
+}
+
+/** Extends the given block with a title slide at the beginning. */
+const generateBlockTitleSlide = ({
+  block,
+  slideId,
+}: {
+  block: BlockType
+  slideId: number
+}): TitleSlideType => {
+  const slideProps: TitleSlideType = {
+    id: slideId,
+    type: "title",
+    title: block.type,
+  }
+  if (block.topic) {
+    slideProps.text = block.topic
+  }
+
+  return slideProps
+}
+
+/** Adds title slides, indices to each slide, and collects all the question data.
+ * Returns an array of questions ready for db insertion,
+ * and the quiz data object updated with slide ids.
+ */
+export const parseQuiz = (quizData: QuizData) => {
+  let slideCounter = 1
+  const questions: QuestionDataType[] = []
+  const blocks: BlockType[] = []
+
+  const titleBlock = generateTitleBlock(quizData)
+  blocks.push(titleBlock)
+
+  quizData.blocks.forEach((block) => {
+    const slides: SlideType[] = []
+    slides.push(
+      generateBlockTitleSlide({
+        block,
+        slideId: slideCounter++,
+      }) as TitleSlideType,
+    )
+
+    block.slides.forEach((slide) => {
+      slides.push(slide)
+      if (slide.type === "question") {
+        questions.push({
+          question: (slide as QuestionSlideType).question,
+          answer: (slide as QuestionSlideType).answer,
+          difficulty: (slide as QuestionSlideType).difficulty ?? null,
+          tags: (slide as QuestionSlideType).tags ?? [],
+        })
+      }
+    })
+    blocks.push({ ...block, slides })
+  })
+
+  const readyQuiz: QuizData = {
+    ...quizData,
+    blocks,
+  }
+  return { questions, updatedJson: readyQuiz }
 }
 
 /** Extracts questions from the quiz object and inserts them into the db.

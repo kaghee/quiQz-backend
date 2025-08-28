@@ -24,8 +24,7 @@ ImageRouter.post(
         return
       }
 
-      // TODO: check how this can be null
-      const imageIndex = fileName?.split("--")[0]?.split(".")[0] || "0"
+      const imageIndex = fileName.split(".")[0] || "0"
       const path = `/${quizTitle}/${slideNo}/`
 
       const downloadUrl = await uploadImage({
