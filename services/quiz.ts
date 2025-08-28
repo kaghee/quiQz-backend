@@ -23,16 +23,11 @@ export const addQuestionsToDbFromJson = async (
   for (const q of questions) {
     try {
       await pool.query(
-        "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4)",
+        "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4) ON CONFLICT (question) DO NOTHING",
         [q.question, q.answer, q.difficulty, q.tags],
       )
     } catch (e: any) {
-      if ("code" in e && e.code === "23505") {
-        console.log(
-          `Skipping adding question ${q.question} as it already exists.`,
-        )
-        continue
-      }
+      console.error("ERROR inserting question:", e)
     }
   }
 }
@@ -101,15 +96,17 @@ export const parseQuiz = (quizData: QuizData) => {
 
   quizData.blocks.forEach((block) => {
     const slides: SlideType[] = []
-    slides.push(
-      generateBlockTitleSlide({
-        block,
-        slideId: slideCounter++,
-      }) as TitleSlideType,
-    )
+    if (block.type !== "static") {
+      slides.push(
+        generateBlockTitleSlide({
+          block,
+          slideId: slideCounter++,
+        }) as TitleSlideType,
+      )
+    }
 
     block.slides.forEach((slide) => {
-      slides.push(slide)
+      slides.push({ ...slide, id: slideCounter++ })
       if (slide.type === "question") {
         questions.push({
           question: (slide as QuestionSlideType).question,

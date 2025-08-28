@@ -17,7 +17,7 @@ ImageRouter.post(
       const [quizTitle, slideNo, fileName] =
         file?.originalname.split("---") || []
 
-      if (!quizTitle || !slideNo || !fileName) {
+      if (!quizTitle?.length || !slideNo?.length || !fileName?.length) {
         res.status(400).send({
           message: "No quiz title or slide id found on the attached file.",
         })

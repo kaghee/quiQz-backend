@@ -13,7 +13,7 @@ QuestionRouter.get("/", async (_req: Request, res: Response) => {
 
 QuestionRouter.post("/", async (req: Request, res: Response) => {
   const { text, answer, difficulty, tags } = req.body
-  const { rows } = await pool.query(
+  await pool.query(
     "INSERT INTO question (text, answer, difficulty, tags) VALUES ($1, $2, $3, $4)",
     [text, answer, difficulty, tags],
   )
