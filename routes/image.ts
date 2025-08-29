@@ -1,6 +1,6 @@
 import { type Request, type Response, Router } from "express"
 import multer from "multer"
-import { uploadImage } from "../services/image"
+import { deleteConcreteImage, uploadImage } from "../services/image"
 
 const upload = multer()
 
@@ -42,3 +42,15 @@ ImageRouter.post(
     }
   },
 )
+
+ImageRouter.post("/delete", async (req: Request, res: Response) => {
+  if (!req.body.path || !req.body.fileIndex) {
+    res.status(400).send({
+      message: "No exact file path specified.",
+    })
+  }
+
+  await deleteConcreteImage(req.body.path, req.body.fileIndex)
+
+  res.status(204).send()
+})

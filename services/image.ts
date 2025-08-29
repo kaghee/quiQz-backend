@@ -62,15 +62,68 @@ const addImageToQuizSlide = async (
   }
 }
 
+/** Updates the quiz in the db after removing the image url
+ * from the relevant slide. */
+const deleteImageFromQuizSlide = async (
+  quizTitle: string,
+  slideId: string,
+  imageIndex: string,
+) => {
+  const result: QueryResult = await pool.query(
+    "SELECT * FROM quiz WHERE title = $1",
+    [quizTitle],
+  )
+  let quizToUpdate = result.rows[0]
+  if (quizToUpdate) {
+    const { blockIndex, slideIndex } = findSlideInBlocks(
+      quizToUpdate.blocks,
+      slideId,
+    )
+
+    const slide = quizToUpdate.blocks[blockIndex].slides[slideIndex]
+    delete slide.images[imageIndex]
+
+    await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
+      JSON.stringify(quizToUpdate.blocks),
+      quizToUpdate.id,
+    ])
+  }
+}
+
+/** Deletes an image specified by path (without extension)
+ *  from the Firebase bucket. */
+export const deleteConcreteImage = async (filePath: string, fileIndex: string) => {
+  try {
+    const firebasePath = filePath.replace("---", "/")
+    const storageRef = ref(storage, firebasePath)
+    const res = await listAll(storageRef)
+
+    const filesWithIndex = res.items.filter(
+      (item) => item.name.split(".")[0] === fileIndex,
+    )
+    for (const item of filesWithIndex) {
+      await deleteObject(item)
+      console.info(`Successfully deleted ${item.fullPath} from the bucket.`)
+    }
+
+    const [quizTitle, slideId] = filePath.split("---")
+    if (quizTitle && slideId) {
+      await deleteImageFromQuizSlide(quizTitle, slideId, fileIndex)
+    }
+
+  } catch (e) {
+    console.error("Image deletion failed.", e)
+  }
+}
+
 /** Checks the Firebase bucket for existing images for the given
  * slide and image index. Deletes any found images for the index.
  */
-const deleteImageIfExists = async (
+const deleteImageByIndices = async (
   storageRef: StorageReference,
   imageIndex: string,
 ) => {
   const res = await listAll(storageRef)
-  console.log(res.items.map((i) => i.name))
 
   const filesWithIndex = res.items.filter(
     (item) => item.name.split(".")[0] === imageIndex,
@@ -103,7 +156,7 @@ export const uploadImage = async ({
 }) => {
   let storageRef = ref(storage, path)
   // Delete images (if any) with the same index
-  await deleteImageIfExists(storageRef, imageIndex)
+  await deleteImageByIndices(storageRef, imageIndex)
 
   const filePath = `${path}${fileName}`
   storageRef = ref(storage, filePath)

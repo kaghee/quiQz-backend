@@ -19,7 +19,6 @@ export interface QuestionDataType {
 export interface BaseSlideType {
   id: number
   type: string
-  imageCount?: number
   images?: { [imageIndex: number]: string }
   background?: string
   textColour?: string
