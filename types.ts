@@ -24,18 +24,14 @@ export interface BaseSlideType {
   textColour?: string
 }
 
-export interface QuestionSlideType extends BaseSlideType, QuestionDataType {
-  number: number
-  questionType: QuestionType
-  isCheckingMode: boolean
-}
+export interface QuestionSlideType extends BaseSlideType, QuestionDataType {}
 
 export interface TitleSlideType extends BaseSlideType {
   title: string
   subTitle?: string
   superTitle?: string
   text?: string
-  cornerText?: string
+  cornerElement?: string
 }
 
 export type SlideType = QuestionSlideType | TitleSlideType
@@ -43,9 +39,12 @@ export type SlideType = QuestionSlideType | TitleSlideType
 export interface BlockType {
   type: QuestionType | "static"
   topic?: string
-  slides: SlideType[]
   background?: string
   textColour?: string
+  blockAnswer?: string
+  slides?: SlideType[]
+  parts?: { [points: string]: string }
+  blockNumbers?: number[]
 }
 
 export interface QuizData {

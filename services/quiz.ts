@@ -55,7 +55,7 @@ const generateTitleBlock = (quizData: QuizData): BlockType => {
         type: "title",
         title: quizData.title,
         text: titleSlideText,
-        cornerText: `Kvízmester: ${quizData.host}`,
+        cornerElement: `<div>Kvízmester: ${quizData.host}</div>`,
       } as TitleSlideType,
     ],
   }
@@ -96,7 +96,7 @@ export const parseQuiz = (quizData: QuizData) => {
 
   quizData.blocks.forEach((block) => {
     const slides: SlideType[] = []
-    if (block.type !== "static") {
+    if (block.type !== "static" && block.type !== "Kérdezz! Felelek") {
       slides.push(
         generateBlockTitleSlide({
           block,
@@ -105,17 +105,28 @@ export const parseQuiz = (quizData: QuizData) => {
       )
     }
 
-    block.slides.forEach((slide) => {
-      slides.push({ ...slide, id: slideCounter++ })
-      if (slide.type === "question") {
-        questions.push({
-          question: (slide as QuestionSlideType).question,
-          answer: (slide as QuestionSlideType).answer,
-          difficulty: (slide as QuestionSlideType).difficulty ?? null,
-          tags: (slide as QuestionSlideType).tags ?? [],
-        })
-      }
-    })
+    if (block.slides) {
+      block.slides.forEach((slide) => {
+        slides.push({ ...slide, id: slideCounter++ })
+        if (slide.type === "question") {
+          questions.push({
+            question: (slide as QuestionSlideType).question,
+            answer: (slide as QuestionSlideType).answer,
+            difficulty: (slide as QuestionSlideType).difficulty ?? null,
+            tags: (slide as QuestionSlideType).tags ?? [],
+          })
+        }
+      })
+    }
+
+    if (block.type === "Kapcsolat kör" && block.blockAnswer) {
+      slides.push({
+        id: slideCounter++,
+        type: "question",
+        question: "Mi a kapcsolat az 1-6. kérdések válaszai között?",
+        answer: block.blockAnswer,
+      })
+    }
     blocks.push({ ...block, slides })
   })
 

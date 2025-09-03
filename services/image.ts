@@ -17,11 +17,11 @@ const findSlideInBlocks = (blocks: BlockType[], slideId: string) => {
     slideIndex: -1,
   }
   blocks.forEach((currBlock, blockIndex) => {
-    const foundSlide = currBlock.slides.find(
+    const foundSlide = currBlock.slides?.find(
       (slide) => slide.id.toString() === slideId,
     )
 
-    if (foundSlide) {
+    if (currBlock.slides && foundSlide) {
       result = { blockIndex, slideIndex: currBlock.slides.indexOf(foundSlide) }
       return
     }
