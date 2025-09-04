@@ -40,13 +40,12 @@ export type SlideType = QuestionSlideType | TitleSlideType
 
 export interface BlockType {
   type: QuestionType | "static"
+  slides: SlideType[]
   topic?: string
   background?: string
   textColour?: string
   blockAnswer?: string
   blockQuestion?: string[]
-  slides?: SlideType[]
-  parts?: { [points: string]: string }
 }
 
 interface BaseQuizDataType {

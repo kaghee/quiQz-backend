@@ -1,4 +1,5 @@
 import pool from "../db"
+import { normalizeText } from "../utils"
 import type {
   BlockType,
   QuestionDataType,
@@ -8,7 +9,6 @@ import type {
   SlideType,
   TitleSlideType,
 } from "../types"
-import { normalizeText } from "../utils"
 
 const WHO_AM_I_POINTS = [5, 3, 2, 1]
 
@@ -60,7 +60,6 @@ const generateTitleBlock = (quizData: QuizDataRequest): BlockType => {
     type: "static",
     slides: [
       {
-        id: 0,
         type: "title",
         title: quizData.title,
         text: titleSlideText,
@@ -72,15 +71,8 @@ const generateTitleBlock = (quizData: QuizDataRequest): BlockType => {
 }
 
 /** Extends the given block with a title slide at the beginning. */
-const generateBlockTitleSlide = ({
-  block,
-  slideId,
-}: {
-  block: BlockType
-  slideId: number
-}): TitleSlideType => {
-  const slideProps: TitleSlideType = {
-    id: slideId,
+const generateBlockTitleSlide = (block: BlockType): Partial<TitleSlideType> => {
+  const slideProps: Partial<TitleSlideType> = {
     type: "title",
     title: block.type,
   }
@@ -108,11 +100,9 @@ const generateWhoAmISlides = (
 
 const generateHalf = ({
   blocks,
-  slideCounter,
   isSecondHalf = false,
 }: {
   blocks: BlockType[]
-  slideCounter: number
   isSecondHalf?: boolean
 }) => {
   const quizSection: BlockType[] = []
@@ -122,7 +112,6 @@ const generateHalf = ({
   const whoAmIData = blocks.find((block) => block.type === "Kérdezz! Felelek")
   if (whoAmIData) {
     whoAmISlides = generateWhoAmISlides(whoAmIData)
-    console.log("WWWWWWwhoAmISlides", whoAmISlides)
 
     whoAmIBlocks = whoAmISlides.map((slide) => ({
       type: "Kérdezz! Felelek",
@@ -146,7 +135,6 @@ const generateHalf = ({
       type: "static",
       slides: [
         {
-          id: slideCounter++,
           type: "title",
           title: "Szünet",
           checking: "off",
@@ -162,16 +150,11 @@ const generateHalf = ({
   blocks.forEach((block) => {
     if (block.type === "Kérdezz! Felelek") return
 
-    const slides: SlideType[] = []
+    const slides: Partial<SlideType>[] = []
 
     /* Add title slide to question block */
     if (block.type !== "static") {
-      slides.push(
-        generateBlockTitleSlide({
-          block,
-          slideId: slideCounter++,
-        }) as TitleSlideType,
-      )
+      slides.push(generateBlockTitleSlide(block) as TitleSlideType)
     }
 
     /* Add the slides themselves. In case of question slides,
@@ -191,7 +174,7 @@ const generateHalf = ({
           }
         }
 
-        const newSlide = { ...slide, id: slideCounter++ }
+        const newSlide = { ...slide }
         if (cornerElement) newSlide.cornerElement = cornerElement
         slides.push(newSlide)
 
@@ -212,13 +195,12 @@ const generateHalf = ({
     /* Add 'Mi a kapcsolat?' slide */
     if (block.type === "Kapcsolat kör" && block.blockAnswer) {
       slides.push({
-        id: slideCounter++,
         type: "question",
         question: ["Mi a kapcsolat az 1-6. kérdések válaszai között?"],
         answer: block.blockAnswer,
-      })
+      } as QuestionSlideType)
     }
-    quizSection.push({ ...block, slides })
+    quizSection.push({ ...block, slides: slides as SlideType[] })
 
     /* Add "Kérdezz! Felelek" slide */
     if (isSecondHalf && whoAmIBlocks?.length) {
@@ -231,15 +213,27 @@ const generateHalf = ({
     type: "static",
     slides: [
       {
-        id: slideCounter++,
         type: "title",
         title: "Megoldások",
-      },
+      } as TitleSlideType,
     ],
   }
   quizSection.push(answersTitleBlock)
 
   return quizSection
+}
+
+/** Adds ids to all the slides in the generated blocks. */
+const addIdsToSlides = (blocks: BlockType[]) => {
+  let slideId = 0
+  let quizBlocks = [...blocks]
+
+  quizBlocks.forEach((block) => {
+    block.slides.forEach((slide) => {
+      slide.id = slideId++
+    })
+  })
+  return quizBlocks
 }
 
 /** Adds title slides, indices to each slide, and collects all the question data.
@@ -249,8 +243,7 @@ const generateHalf = ({
  */
 export const parseQuiz = (quizData: QuizDataRequest) => {
   const questions: QuestionDataType[] = []
-  const quizBlocks: BlockType[] = []
-  const slideCounter = 0
+  let quizBlocks: BlockType[] = []
 
   const titleBlock = generateTitleBlock(quizData)
   quizBlocks.push(titleBlock)
@@ -259,7 +252,6 @@ export const parseQuiz = (quizData: QuizDataRequest) => {
     quizBlocks.push(
       ...generateHalf({
         blocks: quizData.firstHalf.blocks,
-        slideCounter,
       }),
     )
   }
@@ -267,19 +259,19 @@ export const parseQuiz = (quizData: QuizDataRequest) => {
     quizBlocks.push(
       ...generateHalf({
         blocks: quizData.secondHalf.blocks,
-        slideCounter,
         isSecondHalf: true,
       }),
     )
   }
 
+  const quizBlocksWithIds = addIdsToSlides(quizBlocks)
   const { date, title, host } = quizData
 
   const readyQuiz: QuizData = {
     date,
     title,
     host,
-    blocks: quizBlocks,
+    blocks: quizBlocksWithIds,
   }
 
   return { questions, updatedJson: readyQuiz }
