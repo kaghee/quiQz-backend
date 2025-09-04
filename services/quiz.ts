@@ -177,8 +177,24 @@ const generateHalf = ({
     /* Add the slides themselves. In case of question slides,
     add the question to the db as well. */
     if (block.slides) {
-      block.slides.forEach((slide) => {
-        slides.push({ ...slide, id: slideCounter++ })
+      block.slides.forEach((slide, index) => {
+        let cornerElement
+
+        /* Add bonus point indicators */
+        if (block.type === "Kapcsolat kör") {
+          if (index === 1) {
+            cornerElement = '<div class="bonus-3">3 BP</div>'
+          } else if (index === 2) {
+            cornerElement = '<div class="bonus-2">2 BP</div>'
+          } else if (index === 3) {
+            cornerElement = '<div class="bonus-1">1 BP</div>'
+          }
+        }
+
+        const newSlide = { ...slide, id: slideCounter++ }
+        if (cornerElement) newSlide.cornerElement = cornerElement
+        slides.push(newSlide)
+
         if (
           slide.type === "question" &&
           (slide as QuestionSlideType).question?.length

@@ -22,6 +22,7 @@ export interface BaseSlideType {
   images?: { [imageIndex: number]: string }
   background?: string
   textColour?: string
+  cornerElement?: string
 }
 
 export interface QuestionSlideType extends BaseSlideType, QuestionDataType {
@@ -32,7 +33,6 @@ export interface TitleSlideType extends BaseSlideType {
   title: string
   superTitle?: string
   text?: string
-  cornerElement?: string
   checking?: "on" | "off"
 }
 
