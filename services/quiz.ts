@@ -139,10 +139,19 @@ const generateHalf = ({
     }
   }
 
+  /* Add slide for starting the second part. The checking prop warns FE that
+  checking mode should be turned off. */
   if (isSecondHalf) {
     quizSection.push({
       type: "static",
-      slides: [{ type: "title", title: "Második etap, here we go!" }],
+      slides: [
+        {
+          id: slideCounter++,
+          type: "title",
+          title: "Szünet",
+          checking: "off",
+        } as TitleSlideType,
+      ],
     } as BlockType)
   }
 

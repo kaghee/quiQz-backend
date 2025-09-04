@@ -33,6 +33,7 @@ export interface TitleSlideType extends BaseSlideType {
   superTitle?: string
   text?: string
   cornerElement?: string
+  checking?: "on" | "off"
 }
 
 export type SlideType = QuestionSlideType | TitleSlideType
