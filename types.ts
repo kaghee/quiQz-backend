@@ -24,11 +24,12 @@ export interface BaseSlideType {
   textColour?: string
 }
 
-export interface QuestionSlideType extends BaseSlideType, QuestionDataType {}
+export interface QuestionSlideType extends BaseSlideType, QuestionDataType {
+  questionTitle?: string
+}
 
 export interface TitleSlideType extends BaseSlideType {
   title: string
-  subTitle?: string
   superTitle?: string
   text?: string
   cornerElement?: string

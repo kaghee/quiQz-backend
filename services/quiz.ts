@@ -10,6 +10,8 @@ import type {
 } from "../types"
 import { normalizeText } from "../utils"
 
+const WHO_AM_I_POINTS = [5, 3, 2, 1]
+
 export class DuplicateError extends Error {
   constructor(message?: string) {
     super(message)
@@ -97,6 +99,7 @@ const generateWhoAmISlides = (
   return block.blockQuestion.map((_q, index) => {
     return {
       type: "question",
+      questionTitle: `Kérdezz! Felelek: ${WHO_AM_I_POINTS[index]} pont`,
       question: block.blockQuestion?.slice(0, index + 1) || [],
       answer: block.blockAnswer as string,
     }
@@ -134,6 +137,13 @@ const generateHalf = ({
         answer: whoAmIData.blockAnswer,
       })
     }
+  }
+
+  if (isSecondHalf) {
+    quizSection.push({
+      type: "static",
+      slides: [{ type: "title", title: "Második etap, here we go!" }],
+    } as BlockType)
   }
 
   if (isSecondHalf && whoAmIBlocks?.length) {
