@@ -3,6 +3,7 @@ import type {
   BlockType,
   QuestionDataType,
   QuestionSlideType,
+  QuizDataRequest,
   QuizData,
   SlideType,
   TitleSlideType,
@@ -16,25 +17,31 @@ export class DuplicateError extends Error {
   }
 }
 
+/** Inserts a question to the db from a given question object. */
+export const addQuestionToDb = async (q: QuestionDataType) => {
+  try {
+    await pool.query(
+      "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4) ON CONFLICT (question) DO NOTHING",
+      [q.question, q.answer, q.difficulty, q.tags],
+    )
+  } catch (e: any) {
+    console.error("ERROR inserting question:", e)
+  }
+}
+
 /** Inserts questions to the db from a given question array. */
 export const addQuestionsToDbFromJson = async (
   questions: QuestionDataType[],
 ) => {
   for (const q of questions) {
-    try {
-      await pool.query(
-        "INSERT INTO question (question, answer, difficulty, tags) VALUES ($1, $2, $3, $4) ON CONFLICT (question) DO NOTHING",
-        [q.question, q.answer, q.difficulty, q.tags],
-      )
-    } catch (e: any) {
-      console.error("ERROR inserting question:", e)
-    }
+    await addQuestionToDb(q)
   }
 }
 
 /** Generates the first block (slide) that shows the main quiz data. */
-const generateTitleBlock = (quizData: QuizData): BlockType => {
-  const questionTypes: string[] = quizData.blocks.reduce(
+const generateTitleBlock = (quizData: QuizDataRequest): BlockType => {
+  const allBlocks = quizData.firstHalf.blocks.concat(quizData.secondHalf.blocks)
+  const questionTypes: string[] = allBlocks.reduce(
     (blockTitles: string[], currBlock: BlockType) => {
       if (currBlock.type !== "static") {
         blockTitles.push(
@@ -82,21 +89,64 @@ const generateBlockTitleSlide = ({
   return slideProps
 }
 
-/** Adds title slides, indices to each slide, and collects all the question data.
- * Returns an array of questions ready for db insertion,
- * and the quiz data object updated with slide ids.
- */
-export const parseQuiz = (quizData: QuizData) => {
-  let slideCounter = 1
-  const questions: QuestionDataType[] = []
-  const blocks: BlockType[] = []
+const generateWhoAmISlides = (
+  block: BlockType,
+): Partial<QuestionSlideType>[] => {
+  if (!block.blockQuestion || !block.blockAnswer) return []
 
-  const titleBlock = generateTitleBlock(quizData)
-  blocks.push(titleBlock)
+  return block.blockQuestion.map((_q, index) => {
+    return {
+      type: "question",
+      question: block.blockQuestion?.slice(0, index + 1) || [],
+      answer: block.blockAnswer as string,
+    }
+  })
+}
 
-  quizData.blocks.forEach((block) => {
+const generateHalf = ({
+  blocks,
+  slideCounter,
+  isSecondHalf = false,
+}: {
+  blocks: BlockType[]
+  slideCounter: number
+  isSecondHalf?: boolean
+}) => {
+  const quizSection: BlockType[] = []
+
+  let whoAmISlides: Partial<SlideType>[] = []
+  let whoAmIBlocks: BlockType[] = []
+  const whoAmIData = blocks.find((block) => block.type === "Kérdezz! Felelek")
+  if (whoAmIData) {
+    whoAmISlides = generateWhoAmISlides(whoAmIData)
+    console.log("WWWWWWwhoAmISlides", whoAmISlides)
+
+    whoAmIBlocks = whoAmISlides.map((slide) => ({
+      type: "Kérdezz! Felelek",
+      background: whoAmIData.background || "",
+      textColour: whoAmIData.textColour || "",
+      slides: [slide as QuestionSlideType],
+    }))
+
+    if (whoAmIData.blockAnswer && whoAmIData.blockQuestion) {
+      addQuestionToDb({
+        question: whoAmIData.blockQuestion,
+        answer: whoAmIData.blockAnswer,
+      })
+    }
+  }
+
+  if (isSecondHalf && whoAmIBlocks?.length) {
+    quizSection.push(whoAmIBlocks.shift() as BlockType)
+  }
+
+  blocks.forEach((block) => {
+    if (block.type === "Kérdezz! Felelek") return
+
     const slides: SlideType[] = []
-    if (block.type !== "static" && block.type !== "Kérdezz! Felelek") {
+
+    /* Add title slide to question block */
+    if (block.type !== "static") {
       slides.push(
         generateBlockTitleSlide({
           block,
@@ -105,11 +155,16 @@ export const parseQuiz = (quizData: QuizData) => {
       )
     }
 
+    /* Add the slides themselves. In case of question slides,
+    add the question to the db as well. */
     if (block.slides) {
       block.slides.forEach((slide) => {
         slides.push({ ...slide, id: slideCounter++ })
-        if (slide.type === "question") {
-          questions.push({
+        if (
+          slide.type === "question" &&
+          (slide as QuestionSlideType).question?.length
+        ) {
+          addQuestionToDb({
             question: (slide as QuestionSlideType).question,
             answer: (slide as QuestionSlideType).answer,
             difficulty: (slide as QuestionSlideType).difficulty ?? null,
@@ -119,35 +174,94 @@ export const parseQuiz = (quizData: QuizData) => {
       })
     }
 
+    /* Add 'Mi a kapcsolat?' slide */
     if (block.type === "Kapcsolat kör" && block.blockAnswer) {
       slides.push({
         id: slideCounter++,
         type: "question",
-        question: "Mi a kapcsolat az 1-6. kérdések válaszai között?",
+        question: ["Mi a kapcsolat az 1-6. kérdések válaszai között?"],
         answer: block.blockAnswer,
       })
     }
-    blocks.push({ ...block, slides })
+    quizSection.push({ ...block, slides })
+
+    /* Add "Kérdezz! Felelek" slide */
+    if (isSecondHalf && whoAmIBlocks?.length) {
+      quizSection.push(whoAmIBlocks.shift() as BlockType)
+    }
   })
 
-  const readyQuiz: QuizData = {
-    ...quizData,
-    blocks,
+  /* Add "Megoldások" slide */
+  const answersTitleBlock: BlockType = {
+    type: "static",
+    slides: [
+      {
+        id: slideCounter++,
+        type: "title",
+        title: "Megoldások",
+      },
+    ],
   }
+  quizSection.push(answersTitleBlock)
+
+  return quizSection
+}
+
+/** Adds title slides, indices to each slide, and collects all the question data.
+ * If there is a "Who Am I" block, generates its slides and inserts them into the quiz.
+ * Returns an array of questions ready for db insertion,
+ * and the quiz data object updated with slide ids.
+ */
+export const parseQuiz = (quizData: QuizDataRequest) => {
+  const questions: QuestionDataType[] = []
+  const quizBlocks: BlockType[] = []
+  const slideCounter = 0
+
+  const titleBlock = generateTitleBlock(quizData)
+  quizBlocks.push(titleBlock)
+
+  if (quizData.firstHalf) {
+    quizBlocks.push(
+      ...generateHalf({
+        blocks: quizData.firstHalf.blocks,
+        slideCounter,
+      }),
+    )
+  }
+  if (quizData.secondHalf) {
+    quizBlocks.push(
+      ...generateHalf({
+        blocks: quizData.secondHalf.blocks,
+        slideCounter,
+        isSecondHalf: true,
+      }),
+    )
+  }
+
+  const { date, title, host } = quizData
+
+  const readyQuiz: QuizData = {
+    date,
+    title,
+    host,
+    blocks: quizBlocks,
+  }
+
   return { questions, updatedJson: readyQuiz }
 }
 
 /** Extracts questions from the quiz object and inserts them into the db.
  * After adding slide ids to the object, nserts the quiz to the db.
-*/
+ */
 export const processAndSaveQuiz = async (
-  data: QuizData,
+  data: QuizDataRequest,
 ): Promise<{ quizId?: number } | undefined> => {
   try {
     const { questions, updatedJson } = parseQuiz(data)
     await addQuestionsToDbFromJson(questions)
 
     const formattedTitle = normalizeText(updatedJson.title)
+
     const result = await pool.query(
       "INSERT INTO quiz (title, date, blocks) VALUES ($1, $2, $3) RETURNING id",
       [formattedTitle, updatedJson.date, JSON.stringify(updatedJson.blocks)],

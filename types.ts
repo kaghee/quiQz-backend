@@ -10,7 +10,7 @@ export type QuestionType =
   | "+10"
 
 export interface QuestionDataType {
-  question: string
+  question: string[]
   answer: string
   difficulty?: "easy" | "medium" | "hard" | null
   tags?: string[]
@@ -42,15 +42,27 @@ export interface BlockType {
   background?: string
   textColour?: string
   blockAnswer?: string
+  blockQuestion?: string[]
   slides?: SlideType[]
   parts?: { [points: string]: string }
-  blockNumbers?: number[]
 }
 
-export interface QuizData {
+interface BaseQuizDataType {
   id?: number
   date: string
   title: string
   host: string
+}
+
+export interface QuizDataRequest extends BaseQuizDataType {
+  firstHalf: {
+    blocks: BlockType[]
+  }
+  secondHalf: {
+    blocks: BlockType[]
+  }
+}
+
+export interface QuizData extends BaseQuizDataType {
   blocks: BlockType[]
 }
