@@ -9,7 +9,6 @@ import {
   deleteObject,
 } from "firebase/storage"
 import { storage } from "../firebase"
-import { BlockType } from "../types"
 import { findSlideInBlocks } from "../utils"
 
 /** Updates the quiz in the db to have the provided image url
@@ -37,10 +36,17 @@ const addImageToQuizSlide = async (
     }
     slide.images[imageIndex] = url
 
-    await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
-      JSON.stringify(quizToUpdate.blocks),
-      quizToUpdate.id,
-    ])
+    try {
+      await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
+        JSON.stringify(quizToUpdate.blocks),
+        quizToUpdate.id,
+      ])
+      console.info(
+        `Successfully added image ${imageIndex} to ${quizToUpdate.title}`,
+      )
+    } catch (e) {
+      console.error("Quiz update failed.", e)
+    }
   }
 }
 
@@ -74,7 +80,10 @@ const deleteImageFromQuizSlide = async (
 
 /** Deletes an image specified by path (without extension)
  *  from the Firebase bucket. */
-export const deleteConcreteImage = async (filePath: string, fileIndex: string) => {
+export const deleteConcreteImage = async (
+  filePath: string,
+  fileIndex: string,
+) => {
   try {
     const firebasePath = filePath.replace("---", "/")
     const storageRef = ref(storage, firebasePath)
@@ -85,14 +94,15 @@ export const deleteConcreteImage = async (filePath: string, fileIndex: string) =
     )
     for (const item of filesWithIndex) {
       await deleteObject(item)
-      console.info(`Successfully deleted ${item.fullPath} from the bucket.`)
+      console.info(
+        `Successfully deleted file ${item.fullPath} from the bucket.`,
+      )
     }
 
     const [quizTitle, slideId] = filePath.split("---")
     if (quizTitle && slideId) {
       await deleteImageFromQuizSlide(quizTitle, slideId, fileIndex)
     }
-
   } catch (e) {
     console.error("Image deletion failed.", e)
   }
@@ -146,6 +156,7 @@ export const uploadImage = async ({
   // Upload file
   const snapshot = await uploadBytes(storageRef, file.buffer)
   const url = await getDownloadURL(snapshot.ref)
+  console.info(`Successfully uploaded ${filePath} to the bucket.`)
 
   // Update quiz object with new file
   addImageToQuizSlide(quizTitle, slideNo, url, imageIndex)

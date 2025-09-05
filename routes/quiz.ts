@@ -5,6 +5,7 @@ import {
   DuplicateError,
   processAndSaveQuiz,
   updateQuizBlocks,
+  updateQuizImages,
 } from "../services/quiz"
 
 export const QuizRouter: Router = Router()
@@ -27,6 +28,41 @@ QuizRouter.post("/", (req: Request, res: Response) => {
   res.status(201).send("Quiz created successfully.")
 })
 
+QuizRouter.post("/:id/images/", async (req: Request, res: Response) => {
+  try {
+    const { quizId, slideId, oldKey, newKey, imageUrl } = req.body
+    if (!quizId || !slideId || !newKey) {
+      res.status(400).send({
+        message: "Some params not specified.",
+        data: { quizId, slideId, newKey },
+      })
+      return
+    }
+
+    const updateParams: {
+      quizId: string
+      slideId: string
+      newKey: string
+      oldKey?: string
+      imageUrl?: string
+    } = {
+      quizId,
+      slideId,
+      newKey,
+    }
+    if (oldKey !== undefined) updateParams.oldKey = oldKey
+    if (imageUrl !== undefined) updateParams.imageUrl = imageUrl
+
+    const updatedQuiz = await updateQuizImages(updateParams)
+
+    res
+      .status(200)
+      .send({ message: "Quiz updated successfully.", data: updatedQuiz })
+  } catch (e) {
+    res.status(500).send("Something went wrong while updating the quiz.")
+  }
+})
+
 QuizRouter.patch("/:id/", async (req: Request, res: Response) => {
   try {
     const quizId = req.params.id
@@ -35,8 +71,10 @@ QuizRouter.patch("/:id/", async (req: Request, res: Response) => {
       res.status(400).send("Blocks to be updated not specified.")
     }
     if (quizId) {
-      const updatedQuiz = await updateQuizBlocks(blocks)
-      res.status(200).send(updatedQuiz)
+      const updatedQuiz = await updateQuizBlocks(quizId, blocks)
+      res
+        .status(200)
+        .send({ message: "Quiz updated successfully.", data: blocks })
     }
   } catch (e) {
     res.status(500).send("Something went wrong while updating the quiz.")

@@ -16,10 +16,14 @@ export interface QuestionDataType {
   tags?: string[]
 }
 
+export interface IndexedUrlType {
+  [imageIndex: string]: string
+}
+
 export interface BaseSlideType {
   id: number
   type: string
-  images?: { [imageIndex: number]: string }
+  images?: IndexedUrlType
   background?: string
   textColour?: string
   cornerElement?: string
@@ -66,4 +70,12 @@ export interface QuizDataRequest extends BaseQuizDataType {
 
 export interface QuizData extends BaseQuizDataType {
   blocks: BlockType[]
+}
+
+export interface UpdateQuizImagesRequestType {
+  quizId: number
+  slideId: number
+  oldKey?: string
+  newKey: string
+  imageUrl?: string
 }
