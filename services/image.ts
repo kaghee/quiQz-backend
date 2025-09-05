@@ -10,25 +10,7 @@ import {
 } from "firebase/storage"
 import { storage } from "../firebase"
 import { BlockType } from "../types"
-
-const findSlideInBlocks = (blocks: BlockType[], slideId: string) => {
-  let result: { blockIndex: number; slideIndex: number } = {
-    blockIndex: -1,
-    slideIndex: -1,
-  }
-  blocks.forEach((currBlock, blockIndex) => {
-    const foundSlide = currBlock.slides?.find(
-      (slide) => slide.id.toString() === slideId,
-    )
-
-    if (currBlock.slides && foundSlide) {
-      result = { blockIndex, slideIndex: currBlock.slides.indexOf(foundSlide) }
-      return
-    }
-  })
-
-  return result
-}
+import { findSlideInBlocks } from "../utils"
 
 /** Updates the quiz in the db to have the provided image url
  * on the relevant slide. */

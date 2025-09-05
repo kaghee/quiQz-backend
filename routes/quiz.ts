@@ -1,7 +1,11 @@
 import { QueryResult } from "pg"
 import pool from "../db"
 import { type Request, type Response, Router } from "express"
-import { DuplicateError, processAndSaveQuiz } from "../services/quiz"
+import {
+  DuplicateError,
+  processAndSaveQuiz,
+  updateQuizBlocks,
+} from "../services/quiz"
 
 export const QuizRouter: Router = Router()
 
@@ -23,6 +27,22 @@ QuizRouter.post("/", (req: Request, res: Response) => {
   res.status(201).send("Quiz created successfully.")
 })
 
+QuizRouter.patch("/:id/", async (req: Request, res: Response) => {
+  try {
+    const quizId = req.params.id
+    const blocks = req.body.blocks
+    if (!blocks) {
+      res.status(400).send("Blocks to be updated not specified.")
+    }
+    if (quizId) {
+      const updatedQuiz = await updateQuizBlocks(blocks)
+      res.status(200).send(updatedQuiz)
+    }
+  } catch (e) {
+    res.status(500).send("Something went wrong while updating the quiz.")
+  }
+})
+
 QuizRouter.post("/load/", async (req: Request, res: Response) => {
   try {
     const result = await processAndSaveQuiz(req.body)
@@ -32,7 +52,7 @@ QuizRouter.post("/load/", async (req: Request, res: Response) => {
         quizId: result.quizId,
       })
     } else {
-      res.status(400).send("Something went wrong while loading the quiz.")
+      res.status(500).send("Something went wrong while loading the quiz.")
     }
   } catch (e: unknown) {
     if (e instanceof DuplicateError) {

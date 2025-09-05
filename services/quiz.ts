@@ -300,3 +300,14 @@ export const processAndSaveQuiz = async (
     }
   }
 }
+
+export const updateQuizBlocks = async (blocks: BlockType) => {
+  try {
+    const result = await pool.query("UPDATE quiz SET blocks = $1", [
+      JSON.stringify(blocks),
+    ])
+    return result.rows[0]
+  } catch (e) {
+    console.error("ERROR updating quiz.", e)
+  }
+}
