@@ -1,6 +1,10 @@
 import { type Request, type Response, Router } from "express"
 import multer from "multer"
-import { deleteConcreteImage, uploadImage } from "../services/image"
+import {
+  deleteConcreteImage,
+  ImageDeletionError,
+  uploadImage,
+} from "../services/image"
 
 const upload = multer()
 
@@ -50,7 +54,14 @@ ImageRouter.post("/delete", async (req: Request, res: Response) => {
     })
   }
 
-  await deleteConcreteImage(req.body.path, req.body.fileIndex)
-
-  res.status(204).send()
+  try {
+    await deleteConcreteImage(req.body.path, req.body.fileIndex)
+    res.status(204).send()
+  } catch (e) {
+    if (e instanceof ImageDeletionError) {
+      res.status(500).send({ message: e.message })
+    } else {
+      res.status(500).send("Deleting the image failed.")
+    }
+  }
 })

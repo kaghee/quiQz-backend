@@ -7,6 +7,8 @@ import {
   updateQuizBlocks,
   updateQuizImages,
 } from "../services/quiz"
+import { normalizeText } from "../utils"
+import { deleteQuizFromBucket, ImageDeletionError } from "../services/image"
 
 export const QuizRouter: Router = Router()
 
@@ -24,8 +26,30 @@ QuizRouter.get("/:id/", async (req: Request, res: Response) => {
   res.status(200).send(result.rows[0])
 })
 
-QuizRouter.post("/", (req: Request, res: Response) => {
-  res.status(201).send("Quiz created successfully.")
+QuizRouter.delete("/:id/", async (req: Request, res: Response) => {
+  try {
+    const result = await pool.query("SELECT title FROM quiz WHERE id = $1", [
+      req.params.id,
+    ])
+
+    const counter = await deleteQuizFromBucket(
+      normalizeText(result.rows[0].title),
+    )
+
+    await pool.query("DELETE FROM quiz WHERE id = $1", [req.params.id])
+    res
+      .status(200)
+      .send({
+        message: `Quiz and ${counter} images from the bucket deleted successfully.`,
+      })
+  } catch (e) {
+    if (e instanceof ImageDeletionError) {
+      res.status(500).send({ message: e.message })
+    } else {
+      console.error("ERROR deleting quiz:", e)
+      res.status(500).send("Deleting the quiz failed.")
+    }
+  }
 })
 
 QuizRouter.post("/:id/images/", async (req: Request, res: Response) => {

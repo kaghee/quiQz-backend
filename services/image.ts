@@ -11,6 +11,13 @@ import {
 import { storage } from "../firebase"
 import { findSlideInBlocks } from "../utils"
 
+export class ImageDeletionError extends Error {
+  constructor(message?: string) {
+    super(message)
+    this.name = "ImageDeletionError"
+  }
+}
+
 /** Updates the quiz in the db to have the provided image url
  * on the relevant slide. */
 const addImageToQuizSlide = async (
@@ -41,9 +48,7 @@ const addImageToQuizSlide = async (
         JSON.stringify(quizToUpdate.blocks),
         quizToUpdate.id,
       ])
-      console.info(
-        `Successfully added image ${imageIndex} to ${quizToUpdate.title}`,
-      )
+      console.info(`Added image ${imageIndex} to ${quizToUpdate.title}`)
     } catch (e) {
       console.error("Quiz update failed.", e)
     }
@@ -94,9 +99,7 @@ export const deleteConcreteImage = async (
     )
     for (const item of filesWithIndex) {
       await deleteObject(item)
-      console.info(
-        `Successfully deleted file ${item.fullPath} from the bucket.`,
-      )
+      console.info(`Deleted file ${item.fullPath} from the bucket.`)
     }
 
     const [quizTitle, slideId] = filePath.split("---")
@@ -104,7 +107,7 @@ export const deleteConcreteImage = async (
       await deleteImageFromQuizSlide(quizTitle, slideId, fileIndex)
     }
   } catch (e) {
-    console.error("Image deletion failed.", e)
+    throw new ImageDeletionError(JSON.stringify(e))
   }
 }
 
@@ -115,15 +118,42 @@ const deleteImageByIndices = async (
   storageRef: StorageReference,
   imageIndex: string,
 ) => {
-  const res = await listAll(storageRef)
+  try {
+    const res = await listAll(storageRef)
 
-  const filesWithIndex = res.items.filter(
-    (item) => item.name.split(".")[0] === imageIndex,
-  )
+    const filesWithIndex = res.items.filter(
+      (item) => item.name.split(".")[0] === imageIndex,
+    )
 
-  for (const item of filesWithIndex) {
-    await deleteObject(item)
-    console.info(`Successfully deleted ${item.fullPath} from the bucket.`)
+    for (const item of filesWithIndex) {
+      await deleteObject(item)
+      console.info(`Deleted ${item.fullPath} from the bucket.`)
+    }
+  } catch (e) {
+    throw new ImageDeletionError(JSON.stringify(e))
+  }
+}
+
+/** Deletes every image from every folder within the quiz's folder
+ * in the Firebase bucket. */
+export const deleteQuizFromBucket = async (quizTitle: string) => {
+  try {
+    const storageRef = ref(storage, `/${quizTitle}/`)
+    const res = await listAll(storageRef)
+    let deleteCounter = 0
+
+    for (const folder of res.prefixes) {
+      const foldersRes = await listAll(folder)
+      for (const item of foldersRes.items) {
+        await deleteObject(item)
+        console.info(`Deleted ${item.fullPath} from the bucket.`)
+        deleteCounter++
+      }
+    }
+    return deleteCounter
+  } catch (e) {
+    console.error(`Failed to delete folder ${quizTitle}.`, e)
+    throw new ImageDeletionError(JSON.stringify(e))
   }
 }
 
@@ -156,7 +186,7 @@ export const uploadImage = async ({
   // Upload file
   const snapshot = await uploadBytes(storageRef, file.buffer)
   const url = await getDownloadURL(snapshot.ref)
-  console.info(`Successfully uploaded ${filePath} to the bucket.`)
+  console.info(`Uploaded ${filePath} to the bucket.`)
 
   // Update quiz object with new file
   addImageToQuizSlide(quizTitle, slideNo, url, imageIndex)
