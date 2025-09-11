@@ -279,8 +279,7 @@ export const parseQuiz = (quizData: QuizDataRequest) => {
 }
 
 /** Extracts questions from the quiz object and inserts them into the db.
- * After adding slide ids to the object, nserts the quiz to the db.
- */
+ * After adding slide ids to the object, nserts the quiz to the db. */
 export const processAndSaveQuiz = async (
   data: QuizDataRequest,
 ): Promise<{ quizId?: number } | undefined> => {
@@ -376,7 +375,7 @@ export const updateQuizImages = async ({
     }
 
     const updateRes = await updateQuizBlocks(quizId, updatedQuiz.blocks)
-    return updateRes.rows[0]
+    return updateRes
   } catch (e) {
     console.log("ERROR updating quiz with images", e)
   }
