@@ -10,6 +10,7 @@ import {
 } from "firebase/storage"
 import { storage } from "../firebase"
 import { findSlideInBlocks } from "../utils"
+import { baseImage, ImageMeta } from "../types"
 
 export class ImageDeletionError extends Error {
   constructor(message?: string) {
@@ -25,6 +26,7 @@ const addImageToQuizSlide = async (
   slideId: string,
   url: string,
   imageIndex: string,
+  imageId: string,
 ) => {
   const result: QueryResult = await pool.query(
     "SELECT * FROM quiz WHERE title = $1",
@@ -39,9 +41,13 @@ const addImageToQuizSlide = async (
     )
     const slide = quizToUpdate.blocks[blockIndex].slides[slideIndex]
     if (!slide.images) {
-      slide["images"] = {}
+      slide["images"] = [{ ...baseImage, id: imageId, url }]
+    } else {
+      const updatedImages = slide.images.map((img: ImageMeta) =>
+        img?.id === imageId ? { ...img, url } : img,
+      )
+      slide.images = updatedImages
     }
-    slide.images[imageIndex] = url
 
     try {
       await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
@@ -161,21 +167,18 @@ export const deleteQuizFromBucket = async (quizTitle: string) => {
  * to have the image url on the relevant slide.
  * Returns the Firebase url of the uploaded image.
  */
-export const uploadImage = async ({
-  file,
-  path,
-  fileName,
-  quizTitle,
-  slideNo,
-  imageIndex,
-}: {
+export const uploadImage = async (params: {
   file: Express.Multer.File
   path: string
   fileName: string
   quizTitle: string
   slideNo: string
   imageIndex: string
+  imageId: string
 }) => {
+  const { file, path, fileName, quizTitle, slideNo, imageIndex, imageId } =
+    params
+
   let storageRef = ref(storage, path)
   // Delete images (if any) with the same index
   await deleteImageByIndices(storageRef, imageIndex)
@@ -189,7 +192,7 @@ export const uploadImage = async ({
   console.info(`Uploaded ${filePath} to the bucket.`)
 
   // Update quiz object with new file
-  addImageToQuizSlide(quizTitle, slideNo, url, imageIndex)
+  addImageToQuizSlide(quizTitle, slideNo, url, imageIndex, imageId)
 
   return url
 }

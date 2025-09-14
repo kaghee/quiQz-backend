@@ -8,7 +8,8 @@ import type {
   QuizData,
   SlideType,
   TitleSlideType,
-  IndexedUrlType,
+  UpdateQuizImagesRequestType,
+  ImageMeta,
 } from "../types"
 
 const WHO_AM_I_POINTS = [5, 3, 2, 1]
@@ -313,35 +314,35 @@ export const updateQuizBlocks = async (id: string, blocks: BlockType) => {
   }
 }
 
-export const updateQuizImages = async ({
-  quizId,
-  slideId,
-  oldKey,
-  newKey,
-  imageUrl,
-}: {
-  quizId: string
-  slideId: string
-  oldKey?: string
-  newKey: string
-  imageUrl?: string
-}) => {
+export const updateQuizImages = async (params: UpdateQuizImagesRequestType) => {
+  const { quizId, slideId, imageId, newData } = params
+
   try {
-    const res = await pool.query("SELECT * FROM quiz WHERE id = $1", [
-      parseInt(quizId),
-    ])
+    const res = await pool.query("SELECT * FROM quiz WHERE id = $1", [quizId])
     const quiz = res.rows[0]
     if (!quiz) {
       throw new Error(`Quiz with id ${quizId} not found.`)
     }
-    if (!newKey) {
-      throw new Error("No image key specified.")
+    if (!imageId) {
+      throw new Error("No image id specified.")
     }
 
     const { blockIndex, slideIndex } = findSlideInBlocks(
       quiz.blocks,
       slideId.toString(),
     )
+
+    const slideObj = quiz.blocks[blockIndex].slides[slideIndex]
+    let updatedImages: ImageMeta[]
+
+    if (!slideObj.images) {
+      throw new Error("Slide images not found")
+    } else {
+      updatedImages = slideObj.images.map((img: ImageMeta) =>
+        img.id === imageId ? { ...img, ...newData } : img,
+      )
+    }
+
     const updatedQuiz = {
       ...quiz,
       blocks: quiz.blocks.map((block: BlockType, bIdx: number) =>
@@ -350,23 +351,7 @@ export const updateQuizImages = async ({
               ...block,
               slides: block.slides.map((slide, sIdx) =>
                 sIdx === slideIndex
-                  ? {
-                      ...slide,
-                      images: (() => {
-                        const imagesCopy: IndexedUrlType = {
-                          ...slide.images,
-                        }
-                        /* Replacing an image key */
-                        if (oldKey && imagesCopy[oldKey]) {
-                          imagesCopy[newKey] = imagesCopy[oldKey]
-                          delete imagesCopy[oldKey]
-                          /* Adding a new image url */
-                        } else if (imageUrl) {
-                          imagesCopy[newKey] = imageUrl
-                        }
-                        return imagesCopy
-                      })(),
-                    }
+                  ? { ...slide, images: updatedImages }
                   : slide,
               ),
             }

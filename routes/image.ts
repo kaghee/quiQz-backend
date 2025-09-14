@@ -18,10 +18,15 @@ ImageRouter.post(
       res.status(400).send({ message: "No file attached." })
     } else {
       const file = req.file
-      const [quizTitle, slideNo, fileName] =
+      const [quizTitle, slideNo, imageId, fileName] =
         file?.originalname.split("---") || []
 
-      if (!quizTitle?.length || !slideNo?.length || !fileName?.length) {
+      if (
+        !quizTitle?.length ||
+        !slideNo?.length ||
+        !fileName?.length ||
+        !imageId?.length
+      ) {
         res.status(400).send({
           message: "No quiz title or slide id found on the attached file.",
         })
@@ -38,6 +43,7 @@ ImageRouter.post(
         quizTitle,
         slideNo,
         imageIndex,
+        imageId,
       })
 
       res.status(201).send({

@@ -9,6 +9,7 @@ import {
 } from "../services/quiz"
 import { normalizeText } from "../utils"
 import { deleteQuizFromBucket, ImageDeletionError } from "../services/image"
+import { UpdateQuizImagesRequestType } from "../types"
 
 export const QuizRouter: Router = Router()
 
@@ -37,11 +38,9 @@ QuizRouter.delete("/:id/", async (req: Request, res: Response) => {
     )
 
     await pool.query("DELETE FROM quiz WHERE id = $1", [req.params.id])
-    res
-      .status(200)
-      .send({
-        message: `Quiz and ${counter} images from the bucket deleted successfully.`,
-      })
+    res.status(200).send({
+      message: `Quiz and ${counter} images from the bucket deleted successfully.`,
+    })
   } catch (e) {
     if (e instanceof ImageDeletionError) {
       res.status(500).send({ message: e.message })
@@ -54,28 +53,21 @@ QuizRouter.delete("/:id/", async (req: Request, res: Response) => {
 
 QuizRouter.post("/:id/images/", async (req: Request, res: Response) => {
   try {
-    const { quizId, slideId, oldKey, newKey, imageUrl } = req.body
-    if (!quizId || !slideId || !newKey) {
+    const { quizId, slideId, imageId, newData } = req.body
+    if (!quizId || !slideId || !imageId || !newData) {
       res.status(400).send({
         message: "Some params not specified.",
-        data: { quizId, slideId, newKey },
+        data: { quizId, slideId, imageId, newData },
       })
       return
     }
 
-    const updateParams: {
-      quizId: string
-      slideId: string
-      newKey: string
-      oldKey?: string
-      imageUrl?: string
-    } = {
+    const updateParams: UpdateQuizImagesRequestType = {
       quizId,
       slideId,
-      newKey,
+      imageId,
+      newData,
     }
-    if (oldKey !== undefined) updateParams.oldKey = oldKey
-    if (imageUrl !== undefined) updateParams.imageUrl = imageUrl
 
     const updatedQuiz = await updateQuizImages(updateParams)
 

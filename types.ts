@@ -16,14 +16,30 @@ export interface QuestionDataType {
   tags?: string[]
 }
 
-export interface IndexedUrlType {
-  [imageIndex: string]: string
+export type ImageMeta = {
+  id: string // uuid
+  url: string
+  index: number
+  type: "question" | "answer"
+  isFullScreen: boolean
+}
+
+export const baseImage: ImageMeta = {
+  id: "",
+  url: "",
+  index: 0,
+  type: "question",
+  isFullScreen: false,
+}
+
+export type CachedImagesType = {
+  [slideId: number]: ImageMeta[]
 }
 
 export interface BaseSlideType {
   id: number
   type: string
-  images?: IndexedUrlType
+  images?: ImageMeta[]
   background?: string
   textColour?: string
   cornerElement?: string
@@ -73,9 +89,8 @@ export interface QuizData extends BaseQuizDataType {
 }
 
 export interface UpdateQuizImagesRequestType {
-  quizId: number
+  quizId: string
   slideId: number
-  oldKey?: string
-  newKey: string
-  imageUrl?: string
+  imageId: string
+  newData: Partial<ImageMeta>
 }
