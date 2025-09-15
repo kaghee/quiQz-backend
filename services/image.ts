@@ -10,7 +10,7 @@ import {
 } from "firebase/storage"
 import { storage } from "../firebase"
 import { findSlideInBlocks } from "../utils"
-import { baseImage, ImageMeta } from "../types"
+import { baseImage, BlockType, ImageMeta } from "../types"
 
 export class ImageDeletionError extends Error {
   constructor(message?: string) {
@@ -25,7 +25,8 @@ const addImageToQuizSlide = async (
   quizTitle: string,
   slideId: string,
   url: string,
-  imageIndex: string,
+  type: "question" | "answer",
+  imageIndex: number,
   imageId: string,
 ) => {
   const result: QueryResult = await pool.query(
@@ -43,9 +44,25 @@ const addImageToQuizSlide = async (
     if (!slide.images) {
       slide["images"] = [{ ...baseImage, id: imageId, url }]
     } else {
-      const updatedImages = slide.images.map((img: ImageMeta) =>
-        img?.id === imageId ? { ...img, url } : img,
-      )
+      let updatedImages
+      const existing = slide.images.find((img: ImageMeta) => img.id === imageId)
+      if (existing) {
+        updatedImages = slide.images.map((img: ImageMeta) =>
+          img?.id === imageId ? { ...img, url } : img,
+        )
+      } else {
+        updatedImages = [
+          ...slide.images,
+          {
+            ...baseImage,
+            id: imageId,
+            url,
+            index: imageIndex,
+            type,
+          },
+        ]
+      }
+
       slide.images = updatedImages
     }
 
@@ -80,10 +97,26 @@ const deleteImageFromQuizSlide = async (
     )
 
     const slide = quizToUpdate.blocks[blockIndex].slides[slideIndex]
-    delete slide.images[imageIndex]
+    const updatedImages = slide.images.filter(
+      (img: ImageMeta) => img.index !== parseInt(imageIndex),
+    )
+
+    const updatedBlocks = quizToUpdate.blocks.map(
+      (block: BlockType, bIdx: number) =>
+        bIdx === blockIndex
+          ? {
+              ...block,
+              slides: block.slides.map((slide, sIdx) =>
+                sIdx === slideIndex
+                  ? { ...slide, images: updatedImages }
+                  : slide,
+              ),
+            }
+          : block,
+    )
 
     await pool.query("UPDATE quiz SET blocks = $1 WHERE id = $2", [
-      JSON.stringify(quizToUpdate.blocks),
+      JSON.stringify(updatedBlocks),
       quizToUpdate.id,
     ])
   }
@@ -192,7 +225,14 @@ export const uploadImage = async (params: {
   console.info(`Uploaded ${filePath} to the bucket.`)
 
   // Update quiz object with new file
-  addImageToQuizSlide(quizTitle, slideNo, url, imageIndex, imageId)
+  const type = imageIndex.includes("answer-") ? "answer" : "question"
+
+  let index: number = parseInt(imageIndex)
+  if (type === "answer") {
+    index = parseInt(imageIndex.split("answer-")[1] as string)
+  }
+
+  addImageToQuizSlide(quizTitle, slideNo, url, type, index, imageId)
 
   return url
 }
